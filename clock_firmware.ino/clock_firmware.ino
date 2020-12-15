@@ -1,13 +1,13 @@
 #include <SPI.h>
 #include <RTClib.h>
 
-
+//CS pins
 int cs_DAC = 6;
 int rtc_RST = 7;
 int cs_RTC = 10;
 
 
-// digit selects, directly manipulate port c data register
+// digit selects, directly manipulate port c data register, pins 2-5
 int D1 = 0b00000100;
 int D2 = 0b00001000;
 int D3 = 0b00010000;
@@ -25,17 +25,21 @@ byte sreg;
 bool updateTime = false;
 
 void setup() {
-  // Timer Counter1 interrupt configuration  
+  // Timer Counter1 interrupt configuration - see ATmega328P datasheet
   cli();          //disable interrupts
   
   TCCR1A = 0x00;
   TCCR1B = 0x0f;
   TCNT1  = 0x00;  //initialize counter value to 0
-  OCR1A  = 0x3F;  // output compare register 1A to 64*60 (every minute)
+  OCR1A  = 0x3F;  // output compare register 1A to 63 (every second, final code will be one minute)
   TIMSK1 = 0x02;  // enable timer compare interrupt
   
   sei();          //re enable interrupts
 
+    // Cathode Current (works??)
+  pinMode(en_CC,INPUT);
+  digitalWrite(en_CC,HIGH);
+  
   
   Serial.begin(115200);
   SPI.begin();
@@ -46,13 +50,6 @@ void setup() {
   pinMode(cs_DAC,OUTPUT);
   pinMode(rtc_RST,OUTPUT);
   pinMode(cs_RTC,OUTPUT);
-
-  
-
-  // Cathode Current (disable for now)
-  pinMode(en_CC,INPUT);
-  digitalWrite(en_CC,HIGH);
-
 
   // digit select pins
   DDRC = DDRC | B00011110;
@@ -72,29 +69,19 @@ void setup() {
   Serial.println(__DATE__);
   Serial.println(__TIME__);
 
-  // Cathode Current (works??)
-  pinMode(en_CC,INPUT);
-  digitalWrite(en_CC,HIGH);
-
 }
 
-void loop() {
-
-
-  
-  
-    
-  
+void loop() {  
 
   if (updateTime){
-    int theTime[4];
+    int theTime[4];     //modified in functions
     RTC_now(theTime);
     setTime(theTime);
-    Serial.print(theTime[0]);
-    Serial.print(theTime[1]);
-    Serial.print(":");
-    Serial.print(theTime[2]);
-    Serial.println(theTime[3]);
+    //Serial.print(theTime[0]);
+    //Serial.print(theTime[1]);
+    //Serial.print(":");
+    //Serial.print(theTime[2]);
+    //Serial.println(theTime[3]);
     updateTime = false;
   }
   
@@ -125,6 +112,7 @@ void setDigit(int digit, byte value){
   PORTC = 0x00;
 }
 byte getDigit(int digit){
+  //binary values for each number. Not the most efficient way, should just put into a global array but who cares
   byte binVal = 0xFF;
   switch (digit) {
   case -1:
